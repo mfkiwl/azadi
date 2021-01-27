@@ -4,8 +4,8 @@ module azadi_soc_top (
   input reset_ni,
   input uart_rx_i,
 
-  input  logic [3:0] gpio_i,
-  output logic [3:0] gpio_o
+  input  logic [19:0] gpio_i,
+  output logic [19:0] gpio_o
 //  output logic [19:0] gpio_oe
 );
 
@@ -18,8 +18,8 @@ assign RESET = ~reset_ni;
 wire [19:0] gpio_in;
 wire [19:0] gpio_out;
 
-assign gpio_in[3:0] = gpio_i[3:0];
-assign gpio_o[3:0] = gpio_out[3:0]; 
+assign gpio_in = gpio_i;
+assign gpio_o = gpio_out; 
 
 
 // end here
@@ -43,13 +43,27 @@ assign gpio_o[3:0] = gpio_out[3:0];
   tlul_pkg::tl_d2h_t gpio_to_xbarp;
 
   logic [31:0] gpio_intr;
+  logic       rx_dv_i;
+logic [7:0] rx_byte_i;
+
+
+logic instr_valid;
+logic [11:0] tlul_addr;
+logic req_i;
+logic [31:0] tlul_data;
+
+logic iccm_cntrl_reset;
+logic [11:0] iccm_cntrl_addr;
+logic [31:0] iccm_cntrl_data;
+logic iccm_cntrl_we;
+//wire 
 
   //tlul_pkg::tl_h2d_t core_to_gpio;
   //tlul_pkg::tl_d2h_t gpio_to_core;
 
 brq_core_top u_top (
     .clock (clock),
-    .reset (iccm_cntrl_reset),
+    .reset (reset_ni),
 
   // instruction memory interface 
     .tl_i_i (xbar_to_ifu),
@@ -183,26 +197,14 @@ xbar_periph periph_switch (
   .tl_i           (xbarp_to_gpio),
   .tl_o           (gpio_to_xbarp),
 
-  .cio_gpio_i     ({12'b0,gpio_i}),
-  .cio_gpio_o     (gpio_o),
+  .cio_gpio_i     ({12'b0,gpio_in}),
+  .cio_gpio_o     (gpio_out),
   .cio_gpio_en_o  (),
 
   .intr_gpio_o    (gpio_intr)  
 );
 
-logic       rx_dv_i;
-logic [7:0] rx_byte_i;
 
-
-logic instr_valid;
-logic [11:0] tlul_addr;
-logic req_i;
-logic [31:0] tlul_data;
-logic iccm_cntrl_reset;
-logic [11:0] iccm_cntrl_addr;
-logic [31:0] iccm_cntrl_data;
-logic iccm_cntrl_we;
-//wire 
 
  iccm_controller u_dut(
 	.clk_i       (clock),
@@ -219,7 +221,7 @@ logic iccm_cntrl_we;
  .i_Clock       (clock),
  .rst_ni        (RESET),
  .i_Rx_Serial   (uart_rx_i),
- .CLKS_PER_BIT  (15'd1042),
+ .CLKS_PER_BIT  (15'd87),
  .o_Rx_DV       (rx_dv_i),
  .o_Rx_Byte     (rx_byte_i)
  );
@@ -229,12 +231,12 @@ instr_mem_top iccm (
   .clock      (clock),
   .reset      (reset_ni),
 
-  .req        (req_i | ~iccm_cntrl_reset),
-  .addr       ((iccm_cntrl_reset) ? tlul_addr: iccm_cntrl_addr),
-  .wdata      (iccm_cntrl_data),
+  .req        (req_i),
+  .addr       (tlul_addr),
+  .wdata      (),
   .rdata      (tlul_data),
   .rvalid     (instr_valid),
-  .we         ((iccm_cntrl_reset) ? '0: {3'b111,iccm_cntrl_we})
+  .we         ('0)
 );
 
  tlul_sram_adapter #(
